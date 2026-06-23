@@ -6,6 +6,7 @@
 let currentUser = null;
 let currentUserData = null;
 let userRole = 'student'; // por defecto
+let currentRole = 'student'; // rol actual del usuario logueado
 
 // Funciones de UI para cambiar formularios
 function showLogin() {
@@ -122,6 +123,7 @@ auth.onAuthStateChanged(async (user) => {
         if (doc.exists) {
             currentUserData = doc.data();
             userRole = currentUserData.role || 'student';
+            currentRole = userRole;
         } else {
             // Si no existe, crear perfil por defecto como alumno
             currentUserData = { name: user.email, email: user.email, role: 'student' };
