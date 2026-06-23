@@ -1,5 +1,5 @@
 // ============================================================
-//  ADMINISTRACIÓN
+//  ADMINISTRACIÓN (con gestión de materias y editUser corregido)
 // ============================================================
 
 // ---- USUARIOS ----
@@ -50,7 +50,7 @@ document.getElementById('addUserForm').addEventListener('submit', function(e) {
     showNotification('Usuario agregado.');
 });
 
-function editUser(userId) {
+async function editUser(userId) {
     const user = users.find(u => u.id === userId);
     if (!user) return;
     const newName = prompt('Nuevo nombre:', user.name);
@@ -58,11 +58,19 @@ function editUser(userId) {
     const newEmail = prompt('Nuevo email:', user.email);
     if (newEmail !== null && newEmail.trim()) user.email = newEmail.trim();
     const newRole = prompt('Nuevo rol (student, teacher, admin):', user.role);
-    if (newRole !== null && ['student', 'teacher', 'admin'].includes(newRole)) user.role = newRole;
+    if (newRole !== null && ['student', 'teacher', 'admin'].includes(newRole)) {
+        user.role = newRole;
+        try {
+            await db.collection('usuarios').doc(user.id).update({ role: newRole, name: user.name, email: user.email });
+            showNotification('Usuario actualizado correctamente.');
+        } catch (error) {
+            alert('Error al actualizar: ' + error.message);
+            return;
+        }
+    }
     saveAllData();
     renderUserList();
     addLog(currentRole, 'Editó usuario', `ID ${userId}`);
-    showNotification('Usuario actualizado.');
 }
 
 function deleteUser(userId) {
@@ -234,7 +242,7 @@ document.getElementById('addClassForm').addEventListener('submit', function(e) {
     config.classes = [...allClasses];
     saveConfig();
     renderClassListAdmin();
-    updateClassSelectors();  // actualizar los selectores en la página principal
+    updateClassSelectors();
     document.getElementById('newClassName').value = '';
     addLog(currentRole, 'Agregó materia', newClass);
     showNotification('Materia agregada correctamente.');
@@ -250,7 +258,6 @@ function editClassAdmin(oldName) {
         const index = allClasses.indexOf(oldName);
         if (index > -1) {
             allClasses[index] = newName;
-            // Actualizar progreso y favoritos si es necesario
             if (studentProgress.completadas.includes(oldName)) {
                 const idx = studentProgress.completadas.indexOf(oldName);
                 studentProgress.completadas[idx] = newName;
@@ -274,7 +281,6 @@ function editClassAdmin(oldName) {
 function deleteClassAdmin(className) {
     if (!confirm(`¿Eliminar la materia "${className}"? Esto no eliminará las tareas o eventos existentes.`)) return;
     allClasses = allClasses.filter(c => c !== className);
-    // Limpiar progreso
     studentProgress.completadas = studentProgress.completadas.filter(c => c !== className);
     studentProgress.favoritas = studentProgress.favoritas.filter(c => c !== className);
     saveProgress();
@@ -429,7 +435,7 @@ document.getElementById('primaryColorInput').addEventListener('input', function(
     document.getElementById('primaryColorValue').textContent = this.value;
 });
 
-// ---- PESTAÑAS ADMIN (incluye la nueva pestaña de Materias) ----
+// ---- PESTAÑAS ADMIN ----
 document.querySelectorAll('.admin-tab').forEach(tab => {
     tab.addEventListener('click', function() {
         document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
