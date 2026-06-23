@@ -1,8 +1,75 @@
 // ============================================================
-//  TAREAS Y ENTREGAS (vista previa mejorada con soporte automático de YouTube)
+//  TAREAS Y ENTREGAS (v2 - funciones críticas al inicio)
 // ============================================================
 
 let taskBlocks = [];
+
+// ----- Funciones del modal (definidas primero para evitar "not defined") -----
+function openTaskModal(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    document.getElementById('taskModalTitle').textContent = task.title;
+    let bodyHtml = '';
+    if (task.blocks && task.blocks.length > 0) {
+        task.blocks.forEach(block => {
+            if (block.type === 'text') {
+                bodyHtml += `<div style="margin-bottom:1rem;">${block.content}</div>`;
+            } else if (block.type === 'video') {
+                let videoUrl = block.content;
+                if (videoUrl.includes('youtube.com/watch?v=')) {
+                    try {
+                        const videoId = new URL(videoUrl).searchParams.get('v');
+                        if (videoId) videoUrl = `https://www.youtube.com/embed/${videoId}`;
+                    } catch(e) {}
+                } else if (videoUrl.includes('youtu.be/')) {
+                    const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0];
+                    if (videoId) videoUrl = `https://www.youtube.com/embed/${videoId}`;
+                }
+                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="315" src="${videoUrl}" frameborder="0" allowfullscreen></iframe></div>`;
+            } else if (block.type === 'iframe') {
+                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="400" src="${block.content}" frameborder="0"></iframe></div>`;
+            } else if (block.type === 'link') {
+                bodyHtml += `<div style="margin-bottom:1rem;"><a href="${block.content}" target="_blank">${block.content}</a></div>`;
+            } else if (block.type === 'separator') {
+                bodyHtml += `<h3 style="text-align:center; margin:1.5rem 0; color:var(--primary-color); border-bottom:2px solid var(--border-color); padding-bottom:0.5rem;">${block.content}</h3>`;
+            }
+        });
+    } else {
+        bodyHtml = '<p>Sin contenido.</p>';
+    }
+    document.getElementById('taskModalBody').innerHTML = bodyHtml;
+    document.getElementById('taskModal').style.display = 'flex';
+}
+
+function closeTaskModal() {
+    document.getElementById('taskModal').style.display = 'none';
+}
+
+function toggleFullscreenModal() {
+    const modalContent = document.getElementById('taskModalContent');
+    if (!document.fullscreenElement) {
+        if (modalContent.requestFullscreen) modalContent.requestFullscreen();
+        else if (modalContent.webkitRequestFullscreen) modalContent.webkitRequestFullscreen();
+        else if (modalContent.msRequestFullscreen) modalContent.msRequestFullscreen();
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+}
+
+function editTask(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    document.getElementById('taskTitle').value = task.title;
+    document.getElementById('taskDue').value = task.due;
+    document.getElementById('taskClass').value = task.class;
+    document.getElementById('taskStatus').value = task.status || 'publicado';
+    document.getElementById('taskVisibility').value = task.visibility || 'publico';
+    taskBlocks = JSON.parse(JSON.stringify(task.blocks || []));
+    renderBlocks();
+    tasks = tasks.filter(t => t.id !== taskId);
+    document.getElementById('createTaskCard').scrollIntoView({ behavior: 'smooth' });
+    showNotification('Editando tarea. No olvides guardar los cambios.');
+}
 
 // ===== Funciones de bloques =====
 function addBlock(type) {
@@ -33,15 +100,13 @@ function moveBlock(blockId, direction) {
 
 function updateBlockContent(blockId, newContent) {
     const block = taskBlocks.find(b => b.id === blockId);
-    if (block) {
-        block.content = newContent;
-    }
+    if (block) block.content = newContent;
 }
 
 function renderBlocks() {
     const container = document.getElementById('blocksContainer');
     let html = '';
-    taskBlocks.forEach((block, index) => {
+    taskBlocks.forEach((block) => {
         let editorHtml = '';
         if (block.type === 'text') {
             editorHtml = `<textarea oninput="updateBlockContent('${block.id}', this.value)" style="width:100%; min-height:100px; padding:8px; border:1px solid var(--border-color); border-radius:8px;">${block.content}</textarea>`;
@@ -70,7 +135,7 @@ function renderBlocks() {
     container.innerHTML = html;
 }
 
-// ===== Guardar tarea (con bloques y visibilidad) =====
+// ===== Guardar tarea =====
 document.getElementById('createTaskForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const title = document.getElementById('taskTitle').value.trim();
@@ -106,7 +171,7 @@ document.getElementById('createTaskForm').addEventListener('submit', function(e)
     showNotification('Tarea creada exitosamente.');
 });
 
-// ===== Renderizar lista de tareas (con filtro por rol) =====
+// ===== Renderizar lista de tareas =====
 function renderTaskList() {
     const container = document.getElementById('taskListContainer');
     const count = document.getElementById('taskCount');
@@ -154,81 +219,6 @@ function renderTaskList() {
     });
     container.innerHTML = html;
     count.textContent = filteredTasks.length;
-}
-
-// ===== Modal de vista previa (convierte URLs de YouTube automáticamente) =====
-function openTaskModal(taskId) {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    document.getElementById('taskModalTitle').textContent = task.title;
-    let bodyHtml = '';
-    if (task.blocks && task.blocks.length > 0) {
-        task.blocks.forEach(block => {
-            if (block.type === 'text') {
-                bodyHtml += `<div style="margin-bottom:1rem;">${block.content}</div>`;
-            } else if (block.type === 'video') {
-                let videoUrl = block.content;
-                // Convertir automáticamente URLs normales de YouTube a formato embed
-                if (videoUrl.includes('youtube.com/watch?v=')) {
-                    try {
-                        const videoId = new URL(videoUrl).searchParams.get('v');
-                        if (videoId) videoUrl = `https://www.youtube.com/embed/${videoId}`;
-                    } catch(e) {}
-                } else if (videoUrl.includes('youtu.be/')) {
-                    const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0];
-                    if (videoId) videoUrl = `https://www.youtube.com/embed/${videoId}`;
-                }
-                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="315" src="${videoUrl}" frameborder="0" allowfullscreen></iframe></div>`;
-            } else if (block.type === 'iframe') {
-                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="400" src="${block.content}" frameborder="0"></iframe></div>`;
-            } else if (block.type === 'link') {
-                bodyHtml += `<div style="margin-bottom:1rem;"><a href="${block.content}" target="_blank">${block.content}</a></div>`;
-            } else if (block.type === 'separator') {
-                bodyHtml += `<h3 style="text-align:center; margin:1.5rem 0; color:var(--primary-color); border-bottom:2px solid var(--border-color); padding-bottom:0.5rem;">${block.content}</h3>`;
-            }
-        });
-    } else {
-        bodyHtml = '<p>Sin contenido.</p>';
-    }
-    document.getElementById('taskModalBody').innerHTML = bodyHtml;
-    document.getElementById('taskModal').style.display = 'flex';
-}
-
-function closeTaskModal() {
-    document.getElementById('taskModal').style.display = 'none';
-}
-
-function toggleFullscreenModal() {
-    const modalContent = document.getElementById('taskModalContent');
-    if (!document.fullscreenElement) {
-        if (modalContent.requestFullscreen) {
-            modalContent.requestFullscreen();
-        } else if (modalContent.webkitRequestFullscreen) {
-            modalContent.webkitRequestFullscreen();
-        } else if (modalContent.msRequestFullscreen) {
-            modalContent.msRequestFullscreen();
-        }
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
-}
-
-// ===== Editar tarea (cargar bloques en el editor) =====
-function editTask(taskId) {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    document.getElementById('taskTitle').value = task.title;
-    document.getElementById('taskDue').value = task.due;
-    document.getElementById('taskClass').value = task.class;
-    document.getElementById('taskStatus').value = task.status || 'publicado';
-    document.getElementById('taskVisibility').value = task.visibility || 'publico';
-    taskBlocks = JSON.parse(JSON.stringify(task.blocks || []));
-    renderBlocks();
-    tasks = tasks.filter(t => t.id !== taskId);
-    document.getElementById('createTaskCard').scrollIntoView({ behavior: 'smooth' });
-    showNotification('Editando tarea. No olvides guardar los cambios.');
 }
 
 // ===== Funciones existentes (se mantienen igual) =====
