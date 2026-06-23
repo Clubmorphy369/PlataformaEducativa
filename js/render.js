@@ -5,7 +5,6 @@
 let currentRole = 'student';
 
 function renderAll() {
-    // Sincronizar con el rol obtenido desde Firebase (auth.js)
     currentRole = userRole || 'student';
 
     const visibility = config.visibility || {};
@@ -25,6 +24,8 @@ function renderAll() {
 
     document.getElementById('createEventFormContainer').style.display = (currentRole === 'teacher' || currentRole === 'admin') && canSeeCalendar ? 'block' : 'none';
 
+    updateClassSelectors(); // Llenar los selectores de clase dinámicamente
+
     renderTaskList();
     renderTaskSelects();
     renderSubmissionsForGrading();
@@ -41,10 +42,32 @@ function renderAll() {
     renderGlobalAnnouncement();
     renderEventList();
     checkEventReminders();
+
+    if (canSeeAdmin) renderClassListAdmin(); // Para la pestaña de Materias
 }
 
 function updateBadge() {
     const roleNames = { student: 'Alumno', teacher: 'Maestro', admin: 'Admin' };
     const badge = document.getElementById('roleBadge');
     badge.innerHTML = `<i class="fas ${currentRole === 'student' ? 'fa-user-graduate' : currentRole === 'teacher' ? 'fa-chalkboard-teacher' : 'fa-user-shield'}"></i> ${roleNames[currentRole]}`;
+}
+
+function updateClassSelectors() {
+    const selects = ['taskClass', 'forumClassSelect', 'eventClass'];
+    selects.forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+            const currentVal = select.value;
+            select.innerHTML = '';
+            allClasses.forEach(cls => {
+                const opt = document.createElement('option');
+                opt.value = cls;
+                opt.textContent = cls;
+                select.appendChild(opt);
+            });
+            if (allClasses.includes(currentVal)) {
+                select.value = currentVal;
+            }
+        }
+    });
 }
