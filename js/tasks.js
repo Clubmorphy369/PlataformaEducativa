@@ -1,5 +1,5 @@
 // ============================================================
-//  TAREAS Y ENTREGAS (con bloques, visibilidad, separadores y modal mejorado)
+//  TAREAS Y ENTREGAS (vista previa mejorada con soporte automático de YouTube)
 // ============================================================
 
 let taskBlocks = [];
@@ -156,7 +156,7 @@ function renderTaskList() {
     count.textContent = filteredTasks.length;
 }
 
-// ===== Modal de vista previa (renderiza bloques, incluye separadores) =====
+// ===== Modal de vista previa (convierte URLs de YouTube automáticamente) =====
 function openTaskModal(taskId) {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -167,7 +167,18 @@ function openTaskModal(taskId) {
             if (block.type === 'text') {
                 bodyHtml += `<div style="margin-bottom:1rem;">${block.content}</div>`;
             } else if (block.type === 'video') {
-                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="315" src="${block.content}" frameborder="0" allowfullscreen></iframe></div>`;
+                let videoUrl = block.content;
+                // Convertir automáticamente URLs normales de YouTube a formato embed
+                if (videoUrl.includes('youtube.com/watch?v=')) {
+                    try {
+                        const videoId = new URL(videoUrl).searchParams.get('v');
+                        if (videoId) videoUrl = `https://www.youtube.com/embed/${videoId}`;
+                    } catch(e) {}
+                } else if (videoUrl.includes('youtu.be/')) {
+                    const videoId = videoUrl.split('youtu.be/')[1]?.split('?')[0];
+                    if (videoId) videoUrl = `https://www.youtube.com/embed/${videoId}`;
+                }
+                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="315" src="${videoUrl}" frameborder="0" allowfullscreen></iframe></div>`;
             } else if (block.type === 'iframe') {
                 bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="400" src="${block.content}" frameborder="0"></iframe></div>`;
             } else if (block.type === 'link') {
