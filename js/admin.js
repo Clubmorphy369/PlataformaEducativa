@@ -40,7 +40,6 @@ document.getElementById('addUserForm').addEventListener('submit', function(e) {
         alert('El email ya está registrado.');
         return;
     }
-    // Nota: Esto solo agrega el usuario en la UI y Firestore, no crea cuenta de autenticación.
     const newUser = { id: Date.now().toString(), name, email, role };
     users.push(newUser);
     saveAllData();
@@ -198,6 +197,95 @@ function renderGlobalAnnouncement() {
     }
 }
 
+// ---- GESTIÓN DE MATERIAS ----
+function renderClassListAdmin() {
+    const container = document.getElementById('classListAdminContainer');
+    if (allClasses.length === 0) {
+        container.innerHTML = `<div class="empty-state">No hay materias creadas.</div>`;
+        return;
+    }
+    let html = '';
+    allClasses.forEach(cls => {
+        html += `
+            <div class="user-item">
+                <div class="user-info"><strong>${cls}</strong></div>
+                <div class="user-actions">
+                    <button class="btn btn-sm btn-outline" onclick="editClassAdmin('${cls}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteClassAdmin('${cls}')"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+document.getElementById('addClassForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const newClass = document.getElementById('newClassName').value.trim();
+    if (!newClass) {
+        alert('Ingresa un nombre para la materia.');
+        return;
+    }
+    if (allClasses.includes(newClass)) {
+        alert('Esa materia ya existe.');
+        return;
+    }
+    allClasses.push(newClass);
+    config.classes = [...allClasses];
+    saveConfig();
+    renderClassListAdmin();
+    updateClassSelectors();  // actualizar los selectores en la página principal
+    document.getElementById('newClassName').value = '';
+    addLog(currentRole, 'Agregó materia', newClass);
+    showNotification('Materia agregada correctamente.');
+});
+
+function editClassAdmin(oldName) {
+    const newName = prompt('Nuevo nombre para la materia:', oldName);
+    if (newName && newName.trim() !== '' && newName !== oldName) {
+        if (allClasses.includes(newName)) {
+            alert('Esa materia ya existe.');
+            return;
+        }
+        const index = allClasses.indexOf(oldName);
+        if (index > -1) {
+            allClasses[index] = newName;
+            // Actualizar progreso y favoritos si es necesario
+            if (studentProgress.completadas.includes(oldName)) {
+                const idx = studentProgress.completadas.indexOf(oldName);
+                studentProgress.completadas[idx] = newName;
+                saveProgress();
+            }
+            if (studentProgress.favoritas.includes(oldName)) {
+                const idx = studentProgress.favoritas.indexOf(oldName);
+                studentProgress.favoritas[idx] = newName;
+                saveProgress();
+            }
+            config.classes = [...allClasses];
+            saveConfig();
+            renderClassListAdmin();
+            updateClassSelectors();
+            addLog(currentRole, 'Editó materia', `${oldName} → ${newName}`);
+            showNotification('Materia actualizada.');
+        }
+    }
+}
+
+function deleteClassAdmin(className) {
+    if (!confirm(`¿Eliminar la materia "${className}"? Esto no eliminará las tareas o eventos existentes.`)) return;
+    allClasses = allClasses.filter(c => c !== className);
+    // Limpiar progreso
+    studentProgress.completadas = studentProgress.completadas.filter(c => c !== className);
+    studentProgress.favoritas = studentProgress.favoritas.filter(c => c !== className);
+    saveProgress();
+    config.classes = [...allClasses];
+    saveConfig();
+    renderClassListAdmin();
+    updateClassSelectors();
+    addLog(currentRole, 'Eliminó materia', className);
+    showNotification('Materia eliminada.');
+}
+
 // ---- LOGS ----
 function renderLogs() {
     const container = document.getElementById('logListContainer');
@@ -282,6 +370,7 @@ function importData(event) {
             teacherAssignments = data.teacherAssignments || {};
             studentProgress = data.studentProgress || { completadas: [], favoritas: [] };
             config = data.config || config;
+            if (config.classes) allClasses = config.classes;
             saveAllData();
             saveProgress();
             saveConfig();
@@ -340,7 +429,7 @@ document.getElementById('primaryColorInput').addEventListener('input', function(
     document.getElementById('primaryColorValue').textContent = this.value;
 });
 
-// ---- PESTAÑAS ADMIN ----
+// ---- PESTAÑAS ADMIN (incluye la nueva pestaña de Materias) ----
 document.querySelectorAll('.admin-tab').forEach(tab => {
     tab.addEventListener('click', function() {
         document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
@@ -348,5 +437,6 @@ document.querySelectorAll('.admin-tab').forEach(tab => {
         const panelId = this.dataset.tab;
         document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
         document.getElementById('panel-' + panelId).classList.add('active');
+        if (panelId === 'classes') renderClassListAdmin();
     });
 });
