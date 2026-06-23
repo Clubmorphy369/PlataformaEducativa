@@ -126,12 +126,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Clase asociada</label>
-                                <select id="taskClass">
-                                    <option value="Matemáticas">Matemáticas</option>
-                                    <option value="Historia">Historia</option>
-                                    <option value="Ciencias" selected>Ciencias</option>
-                                    <option value="Lengua">Lengua</option>
-                                </select>
+                                <select id="taskClass"></select>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Crear Tarea</button>
@@ -204,12 +199,7 @@
             </div>
             <div class="form-group">
                 <label>Selecciona una clase para ver su foro</label>
-                <select id="forumClassSelect">
-                    <option value="Matemáticas">Matemáticas</option>
-                    <option value="Historia">Historia</option>
-                    <option value="Ciencias" selected>Ciencias</option>
-                    <option value="Lengua">Lengua</option>
-                </select>
+                <select id="forumClassSelect"></select>
             </div>
             <div id="commentListContainer" class="comment-list">
                 <div class="empty-state">No hay comentarios en esta clase. ¡Sé el primero!</div>
@@ -268,12 +258,7 @@
                         </div>
                         <div class="form-group">
                             <label>Clase asociada</label>
-                            <select id="eventClass">
-                                <option value="Matemáticas">Matemáticas</option>
-                                <option value="Historia">Historia</option>
-                                <option value="Ciencias" selected>Ciencias</option>
-                                <option value="Lengua">Lengua</option>
-                            </select>
+                            <select id="eventClass"></select>
                         </div>
                     </div>
                     <div class="form-row">
@@ -311,6 +296,7 @@
                     <button class="admin-tab" data-tab="assignments"><i class="fas fa-user-plus"></i> Asignaciones</button>
                     <button class="admin-tab" data-tab="visibility"><i class="fas fa-eye"></i> Visibilidad</button>
                     <button class="admin-tab" data-tab="announcements"><i class="fas fa-bullhorn"></i> Anuncios</button>
+                    <button class="admin-tab" data-tab="classes"><i class="fas fa-book"></i> Materias</button>
                     <button class="admin-tab" data-tab="logs"><i class="fas fa-history"></i> Logs</button>
                     <button class="admin-tab" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analíticas</button>
                     <button class="admin-tab" data-tab="backup"><i class="fas fa-database"></i> Backup</button>
@@ -379,6 +365,18 @@
                         <textarea id="announcementInput" rows="3" placeholder="Escribe un anuncio..."></textarea>
                     </div>
                     <button class="btn btn-primary" onclick="saveAnnouncement()"><i class="fas fa-bullhorn"></i> Publicar anuncio</button>
+                </div>
+
+                <!-- NUEVO PANEL DE MATERIAS -->
+                <div class="admin-panel" id="panel-classes">
+                    <h3 style="margin-bottom:12px;">Gestión de Materias</h3>
+                    <form id="addClassForm" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+                        <input type="text" id="newClassName" placeholder="Nombre de la materia" required style="flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Agregar</button>
+                    </form>
+                    <div id="classListAdminContainer" class="user-list">
+                        <div class="empty-state">No hay materias creadas.</div>
+                    </div>
                 </div>
 
                 <div class="admin-panel" id="panel-logs">
