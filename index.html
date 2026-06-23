@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
     <!-- Contenedor de autenticación (se muestra si no hay sesión) -->
@@ -116,8 +117,33 @@
                             <input type="text" id="taskTitle" placeholder="Ej: Ensayo sobre la Revolución" required />
                         </div>
                         <div class="form-group">
-                            <label>Descripción</label>
-                            <textarea id="taskDesc" placeholder="Describe los requisitos de la tarea..."></textarea>
+                            <label>Descripción (puedes dar formato, insertar enlaces, imágenes, etc.)</label>
+                            <!-- Barra de herramientas del editor -->
+                            <div class="editor-toolbar">
+                                <button type="button" onclick="execCmd('bold')"><b>N</b></button>
+                                <button type="button" onclick="execCmd('italic')"><i>C</i></button>
+                                <button type="button" onclick="execCmd('underline')"><u>S</u></button>
+                                <select onchange="execCmd('fontName', this.value)">
+                                    <option value="Arial">Arial</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Courier New">Courier New</option>
+                                </select>
+                                <select onchange="execCmd('fontSize', this.value)">
+                                    <option value="1">Pequeño</option>
+                                    <option value="3" selected>Normal</option>
+                                    <option value="5">Grande</option>
+                                    <option value="7">Muy grande</option>
+                                </select>
+                                <input type="color" onchange="execCmd('foreColor', this.value)" value="#000000">
+                                <button type="button" onclick="insertLink()"><i class="fas fa-link"></i></button>
+                                <button type="button" onclick="insertImage()"><i class="fas fa-image"></i></button>
+                                <button type="button" onclick="insertIFrame()"><i class="fas fa-code"></i></button>
+                                <button type="button" onclick="document.getElementById('taskFileInput').click()"><i class="fas fa-paperclip"></i></button>
+                                <input type="file" id="taskFileInput" style="display:none" onchange="uploadTaskFile()" />
+                            </div>
+                            <!-- Área editable -->
+                            <div id="taskEditor" class="editor-content" contenteditable="true"></div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
