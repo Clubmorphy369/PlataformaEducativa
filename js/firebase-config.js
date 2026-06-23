@@ -1,11 +1,11 @@
-// Configuración de Firebase (reemplaza con tus datos)
+// Configuración de Firebase (con datos reales)
 const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "TU_PROJECT.firebaseapp.com",
-    projectId: "TU_PROJECT",
-    storageBucket: "TU_PROJECT.appspot.com",
-    messagingSenderId: "TU_SENDER_ID",
-    appId: "TU_APP_ID"
+    apiKey: "AIzaSyCfBqdYlZY3ELO2ti0tiPrzau6JccAfRtM",
+    authDomain: "plataformaeducativa-8d5ac.firebaseapp.com",
+    projectId: "plataformaeducativa-8d5ac",
+    storageBucket: "plataformaeducativa-8d5ac.firebasestorage.app",
+    messagingSenderId: "358052040473",
+    appId: "1:358052040473:web:b5a476c7d3bb10c9b7bf88"
 };
 
 // Inicializar Firebase
