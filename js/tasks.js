@@ -1,29 +1,149 @@
 // ============================================================
-//  TAREAS Y ENTREGAS
+//  TAREAS Y ENTREGAS (con bloques, visibilidad, separadores y modal mejorado)
 // ============================================================
 
+let taskBlocks = [];
+
+// ===== Funciones de bloques =====
+function addBlock(type) {
+    const block = {
+        id: Date.now().toString(),
+        type: type,
+        content: (type === 'separator') ? 'Nueva sección' : ''
+    };
+    taskBlocks.push(block);
+    renderBlocks();
+}
+
+function removeBlock(blockId) {
+    taskBlocks = taskBlocks.filter(b => b.id !== blockId);
+    renderBlocks();
+}
+
+function moveBlock(blockId, direction) {
+    const index = taskBlocks.findIndex(b => b.id === blockId);
+    if (index === -1) return;
+    if (direction === 'up' && index > 0) {
+        [taskBlocks[index], taskBlocks[index - 1]] = [taskBlocks[index - 1], taskBlocks[index]];
+    } else if (direction === 'down' && index < taskBlocks.length - 1) {
+        [taskBlocks[index], taskBlocks[index + 1]] = [taskBlocks[index + 1], taskBlocks[index]];
+    }
+    renderBlocks();
+}
+
+function updateBlockContent(blockId, newContent) {
+    const block = taskBlocks.find(b => b.id === blockId);
+    if (block) {
+        block.content = newContent;
+    }
+}
+
+function renderBlocks() {
+    const container = document.getElementById('blocksContainer');
+    let html = '';
+    taskBlocks.forEach((block, index) => {
+        let editorHtml = '';
+        if (block.type === 'text') {
+            editorHtml = `<textarea oninput="updateBlockContent('${block.id}', this.value)" style="width:100%; min-height:100px; padding:8px; border:1px solid var(--border-color); border-radius:8px;">${block.content}</textarea>`;
+        } else if (block.type === 'video' || block.type === 'iframe' || block.type === 'link') {
+            editorHtml = `<input type="text" value="${block.content}" oninput="updateBlockContent('${block.id}', this.value)" placeholder="URL del ${block.type}" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:8px;" />`;
+        } else if (block.type === 'separator') {
+            editorHtml = `<input type="text" value="${block.content}" oninput="updateBlockContent('${block.id}', this.value)" placeholder="Nombre de la sección" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:8px; font-weight:bold; text-align:center;" />`;
+        }
+        html += `
+            <div class="block-item" style="background:var(--bg-body); padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid var(--primary-color);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span><i class="fas ${block.type === 'text' ? 'fa-font' : block.type === 'video' ? 'fa-video' : block.type === 'iframe' ? 'fa-code' : block.type === 'link' ? 'fa-link' : 'fa-heading'}"></i> ${block.type.toUpperCase()}</span>
+                    <div style="display:flex; gap:4px;">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="moveBlock('${block.id}', 'up')"><i class="fas fa-arrow-up"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="moveBlock('${block.id}', 'down')"><i class="fas fa-arrow-down"></i></button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeBlock('${block.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                ${editorHtml}
+            </div>
+        `;
+    });
+    if (taskBlocks.length === 0) {
+        html = '<p class="text-muted">Agrega bloques de contenido usando los botones de abajo.</p>';
+    }
+    container.innerHTML = html;
+}
+
+// ===== Guardar tarea (con bloques y visibilidad) =====
+document.getElementById('createTaskForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const title = document.getElementById('taskTitle').value.trim();
+    const due = document.getElementById('taskDue').value;
+    const cls = document.getElementById('taskClass').value;
+    const status = document.getElementById('taskStatus').value;
+    const visibility = document.getElementById('taskVisibility').value;
+
+    if (!title || !due) {
+        alert('Título y fecha de entrega son obligatorios.');
+        return;
+    }
+
+    const newTask = {
+        id: Date.now().toString(),
+        title,
+        due,
+        class: cls,
+        status: status,
+        visibility: visibility,
+        blocks: JSON.parse(JSON.stringify(taskBlocks)),
+        createdAt: new Date().toISOString()
+    };
+
+    tasks.push(newTask);
+    saveAllData();
+    renderAll();
+    document.getElementById('taskTitle').value = '';
+    document.getElementById('taskDue').value = '';
+    taskBlocks = [];
+    renderBlocks();
+    addLog(currentRole, 'Creó tarea', `"${title}" (${cls})`);
+    showNotification('Tarea creada exitosamente.');
+});
+
+// ===== Renderizar lista de tareas (con filtro por rol) =====
 function renderTaskList() {
     const container = document.getElementById('taskListContainer');
     const count = document.getElementById('taskCount');
-    if (tasks.length === 0) {
-        container.innerHTML = `<div class="empty-state">No hay tareas creadas aún.</div>`;
+
+    let filteredTasks = tasks.filter(task => {
+        if (currentRole === 'admin' || currentRole === 'teacher') {
+            return true;
+        } else {
+            return task.status === 'publicado' && task.visibility === 'publico';
+        }
+    });
+
+    if (filteredTasks.length === 0) {
+        container.innerHTML = `<div class="empty-state">No hay tareas disponibles.</div>`;
         count.textContent = '0';
         return;
     }
+
     let html = '';
-    tasks.forEach(task => {
+    filteredTasks.forEach(task => {
         const dueDate = new Date(task.due).toLocaleDateString('es-ES');
+        const statusBadge = task.status === 'publicado' ? '✅' : '📝';
+        const visibilityBadge = task.visibility === 'publico' ? '🌐' : '🔒';
+
         html += `
             <div class="task-item">
-                <div class="title">${task.title}</div>
+                <div class="title">${statusBadge} ${visibilityBadge} ${task.title}</div>
                 <div class="meta">
                     <span><i class="far fa-calendar-alt"></i> ${dueDate}</span>
                     <span><i class="fas fa-users"></i> ${task.class}</span>
-                    <span><i class="fas fa-file-alt"></i> ${task.desc || 'Sin descripción'}</span>
+                    <span><i class="fas fa-cubes"></i> ${task.blocks?.length || 0} bloques</span>
                 </div>
                 <div class="actions">
+                    <button class="btn btn-sm btn-outline" onclick="openTaskModal('${task.id}')"><i class="fas fa-eye"></i> Ver</button>
                     ${(currentRole === 'teacher' || currentRole === 'admin') ? 
-                        `<button class="btn btn-sm btn-outline" onclick="deleteTask('${task.id}')"><i class="fas fa-trash"></i> Eliminar</button>` 
+                        `<button class="btn btn-sm btn-outline" onclick="editTask('${task.id}')"><i class="fas fa-edit"></i> Editar</button>
+                         <button class="btn btn-sm btn-danger" onclick="deleteTask('${task.id}')"><i class="fas fa-trash"></i> Eliminar</button>` 
                         : ''}
                     ${currentRole === 'student' ? 
                         `<button class="btn btn-sm btn-outline" onclick="selectTaskForSubmit('${task.id}')"><i class="fas fa-arrow-right"></i> Entregar</button>` 
@@ -33,9 +153,74 @@ function renderTaskList() {
         `;
     });
     container.innerHTML = html;
-    count.textContent = tasks.length;
+    count.textContent = filteredTasks.length;
 }
 
+// ===== Modal de vista previa (renderiza bloques, incluye separadores) =====
+function openTaskModal(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    document.getElementById('taskModalTitle').textContent = task.title;
+    let bodyHtml = '';
+    if (task.blocks && task.blocks.length > 0) {
+        task.blocks.forEach(block => {
+            if (block.type === 'text') {
+                bodyHtml += `<div style="margin-bottom:1rem;">${block.content}</div>`;
+            } else if (block.type === 'video') {
+                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="315" src="${block.content}" frameborder="0" allowfullscreen></iframe></div>`;
+            } else if (block.type === 'iframe') {
+                bodyHtml += `<div style="margin-bottom:1rem;"><iframe width="100%" height="400" src="${block.content}" frameborder="0"></iframe></div>`;
+            } else if (block.type === 'link') {
+                bodyHtml += `<div style="margin-bottom:1rem;"><a href="${block.content}" target="_blank">${block.content}</a></div>`;
+            } else if (block.type === 'separator') {
+                bodyHtml += `<h3 style="text-align:center; margin:1.5rem 0; color:var(--primary-color); border-bottom:2px solid var(--border-color); padding-bottom:0.5rem;">${block.content}</h3>`;
+            }
+        });
+    } else {
+        bodyHtml = '<p>Sin contenido.</p>';
+    }
+    document.getElementById('taskModalBody').innerHTML = bodyHtml;
+    document.getElementById('taskModal').style.display = 'flex';
+}
+
+function closeTaskModal() {
+    document.getElementById('taskModal').style.display = 'none';
+}
+
+function toggleFullscreenModal() {
+    const modalContent = document.getElementById('taskModalContent');
+    if (!document.fullscreenElement) {
+        if (modalContent.requestFullscreen) {
+            modalContent.requestFullscreen();
+        } else if (modalContent.webkitRequestFullscreen) {
+            modalContent.webkitRequestFullscreen();
+        } else if (modalContent.msRequestFullscreen) {
+            modalContent.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+// ===== Editar tarea (cargar bloques en el editor) =====
+function editTask(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    document.getElementById('taskTitle').value = task.title;
+    document.getElementById('taskDue').value = task.due;
+    document.getElementById('taskClass').value = task.class;
+    document.getElementById('taskStatus').value = task.status || 'publicado';
+    document.getElementById('taskVisibility').value = task.visibility || 'publico';
+    taskBlocks = JSON.parse(JSON.stringify(task.blocks || []));
+    renderBlocks();
+    tasks = tasks.filter(t => t.id !== taskId);
+    document.getElementById('createTaskCard').scrollIntoView({ behavior: 'smooth' });
+    showNotification('Editando tarea. No olvides guardar los cambios.');
+}
+
+// ===== Funciones existentes (se mantienen igual) =====
 function renderTaskSelects() {
     const submitSelect = document.getElementById('submitTaskSelect');
     const gradeSelect = document.getElementById('gradeTaskSelect');
@@ -105,35 +290,6 @@ function renderSubmissionsForGrading() {
     });
     container.innerHTML = html;
 }
-
-// Crear tarea
-document.getElementById('createTaskForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const title = document.getElementById('taskTitle').value.trim();
-    const desc = document.getElementById('taskDesc').value.trim();
-    const due = document.getElementById('taskDue').value;
-    const cls = document.getElementById('taskClass').value;
-    if (!title || !due) {
-        alert('Título y fecha de entrega son obligatorios.');
-        return;
-    }
-    const newTask = {
-        id: Date.now().toString(),
-        title,
-        desc,
-        due,
-        class: cls,
-        createdAt: new Date().toISOString()
-    };
-    tasks.push(newTask);
-    saveAllData();
-    renderAll();
-    document.getElementById('taskTitle').value = '';
-    document.getElementById('taskDesc').value = '';
-    document.getElementById('taskDue').value = '';
-    addLog(currentRole, 'Creó tarea', `"${title}" (${cls})`);
-    showNotification('Tarea creada exitosamente.');
-});
 
 function deleteTask(taskId) {
     if (!confirm('¿Eliminar esta tarea y todas sus entregas?')) return;
