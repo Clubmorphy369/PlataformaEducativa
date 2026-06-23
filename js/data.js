@@ -12,13 +12,21 @@ let teacherAssignments = {};
 let studentProgress = { completadas: [], favoritas: [] };
 let config = {};
 
-const allClasses = ['Matemáticas', 'Historia', 'Ciencias', 'Lengua'];
+let allClasses = ['Matemáticas', 'Historia', 'Ciencias', 'Lengua']; // se actualizará desde config
 
 // Cargar todo desde Firestore
 async function loadAllDataFromFirestore() {
     // Configuración
     const configSnap = await db.collection('config').doc('app').get();
     config = configSnap.exists ? configSnap.data() : getDefaultConfig();
+
+    if (config.classes && config.classes.length > 0) {
+        allClasses = config.classes;
+    } else {
+        config.classes = ['Matemáticas', 'Historia', 'Ciencias', 'Lengua'];
+        allClasses = [...config.classes];
+        await db.collection('config').doc('app').set({ classes: allClasses }, { merge: true });
+    }
 
     // Colecciones
     tasks = (await db.collection('tasks').get()).docs.map(d => ({ id: d.id, ...d.data() }));
@@ -60,7 +68,8 @@ function getDefaultConfig() {
         theme: 'light',
         fontFamily: 'Inter',
         fontSize: 16,
-        primaryColor: '#4f46e5'
+        primaryColor: '#4f46e5',
+        classes: ['Matemáticas', 'Historia', 'Ciencias', 'Lengua']
     };
 }
 
@@ -99,7 +108,8 @@ async function saveAllData() {
     });
     // Asignaciones
     batch.set(db.collection('assignments').doc('teacherAssignments'), { assignments: teacherAssignments });
-    // Configuración
+    // Configuración (incluye classes)
+    config.classes = allClasses;
     batch.set(db.collection('config').doc('app'), config);
     // Progreso del estudiante en su documento
     if (currentUser) {
@@ -116,6 +126,7 @@ function saveProgress() {
 }
 
 function saveConfig() {
+    config.classes = allClasses;
     db.collection('config').doc('app').set(config, { merge: true });
 }
 
