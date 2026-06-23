@@ -6,7 +6,7 @@
 let currentUser = null;
 let currentUserData = null;
 let userRole = 'student'; // por defecto
-let currentRole = 'student'; // rol actual del usuario logueado
+let currentRole = 'student'; // <-- AÑADIDO (paso 3)
 
 // Funciones de UI para cambiar formularios
 function showLogin() {
@@ -79,11 +79,10 @@ async function register() {
 
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
-        // Crear perfil en Firestore
         await db.collection('usuarios').doc(cred.user.uid).set({
             name,
             email,
-            role: 'student', // forzado
+            role: 'student',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         showAuthAlert('Cuenta creada. Ya puedes iniciar sesión.', 'success');
@@ -118,28 +117,27 @@ function logout() {
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
-        // Cargar perfil desde Firestore
         const doc = await db.collection('usuarios').doc(user.uid).get();
         if (doc.exists) {
             currentUserData = doc.data();
             userRole = currentUserData.role || 'student';
-            currentRole = userRole;
+            currentRole = userRole; // <-- AÑADIDO (paso 3)
         } else {
-            // Si no existe, crear perfil por defecto como alumno
             currentUserData = { name: user.email, email: user.email, role: 'student' };
             userRole = 'student';
+            currentRole = 'student'; // <-- AÑADIDO (paso 3, también aquí por si acaso)
             await db.collection('usuarios').doc(user.uid).set(currentUserData);
         }
         document.getElementById('authContainer').style.display = 'none';
         document.getElementById('app').style.display = 'block';
         document.getElementById('userNameDisplay').textContent = currentUserData.name || user.email;
         document.getElementById('roleBadge').innerHTML = `<i class="fas fa-user-graduate"></i> ${userRole.toUpperCase()}`;
-        // Cargar datos desde Firestore y renderizar
         await loadAllDataFromFirestore();
         renderAll();
     } else {
         currentUser = null;
         currentUserData = null;
+        currentRole = 'student'; // reiniciar
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('app').style.display = 'none';
         showLogin();
