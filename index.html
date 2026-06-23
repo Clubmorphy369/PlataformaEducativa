@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plataforma Educativa</title>
+    <!-- Fuente e iconos -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/styles.css" />
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <!-- Contenedor de autenticación (se muestra si no hay sesión) -->
+    <div id="authContainer" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+        <div class="auth-container" style="max-width: 450px; width: 100%; background: var(--bg-card); padding: 2rem; border-radius: var(--radius); box-shadow: var(--shadow);">
+            <h1>📚 Plataforma Educativa</h1>
+            <p class="subtitle">Accede a tu cuenta</p>
+            <div id="authAlert" class="alert" style="display: none;"></div>
+            <!-- Login -->
+            <div id="loginForm">
+                <h2>Iniciar Sesión</h2>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <input type="email" id="loginEmail" placeholder="tu@correo.com">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••">
+                </div>
+                <button class="btn btn-primary" onclick="login()">🔐 Iniciar Sesión</button>
+                <div class="flex-between mt-1">
+                    <span class="link" onclick="showRegister()">📝 Crear cuenta</span>
+                    <span class="link" onclick="showRecovery()">🔑 Olvidé mi contraseña</span>
+                </div>
+            </div>
+            <!-- Registro -->
+            <div id="registerForm" style="display: none;">
+                <h2>Crear Cuenta</h2>
+                <p class="text-muted text-sm">Todos los usuarios se registran como <strong>Alumno</strong>. Los administradores podrán cambiar tu rol después.</p>
+                <div class="form-group">
+                    <label>Nombre completo</label>
+                    <input type="text" id="regName" placeholder="Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <input type="email" id="regEmail" placeholder="tu@correo.com">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres">
+                </div>
+                <button class="btn btn-primary" onclick="register()">✅ Registrarse</button>
+                <p class="text-center mt-1"><span class="link" onclick="showLogin()">← Volver al inicio</span></p>
+            </div>
+            <!-- Recuperación -->
+            <div id="recoveryForm" style="display: none;">
+                <h2>Recuperar Contraseña</h2>
+                <p class="text-sm text-muted mb-2">Te enviaremos un enlace para restablecerla.</p>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <input type="email" id="recoveryEmail" placeholder="tu@correo.com">
+                </div>
+                <button class="btn btn-primary" onclick="recoverPassword()">📧 Enviar enlace</button>
+                <p class="text-center mt-1"><span class="link" onclick="showLogin()">← Volver al inicio</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor principal de la aplicación (oculto hasta iniciar sesión) -->
+    <div id="app" class="app" style="display: none;">
+        <!-- Cabecera -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+            <div>
+                <h1><i class="fas fa-tasks"></i> Plataforma Educativa</h1>
+                <div class="subtitle">Tareas, foro, progreso, calendario y administración</div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center;">
+                <span class="badge" id="roleBadge"><i class="fas fa-user-graduate"></i> Alumno</span>
+                <span id="userNameDisplay" style="font-weight: 500;"></span>
+                <div class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </div>
+                <button class="btn-logout" onclick="logout()">🚪 Salir</button>
+            </div>
+        </div>
+
+        <!-- Anuncio global -->
+        <div id="globalAnnouncement" class="global-announcement hidden">
+            <i class="fas fa-bullhorn"></i>
+            <span id="announcementText">Mensaje global</span>
+        </div>
+
+        <!-- Banner de notificación -->
+        <div class="notification-banner hidden" id="notificationBanner">
+            <i class="fas fa-bell"></i>
+            <span id="notificationMessage">¡Notificación!</span>
+        </div>
+
+        <!-- Grid principal: Tareas y entregas -->
+        <div class="dashboard-grid">
+            <!-- Columna izquierda: Creación y lista de tareas -->
+            <div>
+                <div class="card" id="createTaskCard">
+                    <div class="card-header">
+                        <h2><i class="fas fa-plus-circle"></i> Nueva Tarea</h2>
+                        <span class="badge">Maestro</span>
+                    </div>
+                    <form id="createTaskForm">
+                        <div class="form-group">
+                            <label>Título *</label>
+                            <input type="text" id="taskTitle" placeholder="Ej: Ensayo sobre la Revolución" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea id="taskDesc" placeholder="Describe los requisitos de la tarea..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha de entrega *</label>
+                                <input type="date" id="taskDue" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Clase asociada</label>
+                                <select id="taskClass">
+                                    <option value="Matemáticas">Matemáticas</option>
+                                    <option value="Historia">Historia</option>
+                                    <option value="Ciencias" selected>Ciencias</option>
+                                    <option value="Lengua">Lengua</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Crear Tarea</button>
+                    </form>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2><i class="fas fa-list-ul"></i> Tareas disponibles</h2>
+                        <span class="badge" id="taskCount">0</span>
+                    </div>
+                    <div id="taskListContainer" class="task-list">
+                        <div class="empty-state">No hay tareas creadas aún.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna derecha: Entrega y Calificación -->
+            <div>
+                <div class="card" id="submissionPanel">
+                    <div class="card-header">
+                        <h2><i class="fas fa-upload"></i> Entregar tarea</h2>
+                        <span class="badge">Alumno</span>
+                    </div>
+                    <form id="submitForm">
+                        <div class="form-group">
+                            <label>Selecciona una tarea *</label>
+                            <select id="submitTaskSelect" required>
+                                <option value="">-- Elige una tarea --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Texto de entrega</label>
+                            <textarea id="submitText" placeholder="Escribe tu respuesta o comentario..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Archivo adjunto (opcional)</label>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="submitFile" />
+                                <span style="font-size:13px; color:#64748b;">(máx. 5MB)</span>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane"></i> Entregar</button>
+                    </form>
+                </div>
+
+                <div class="card" style="margin-top: 20px;" id="gradePanel">
+                    <div class="card-header">
+                        <h2><i class="fas fa-star"></i> Calificar entregas</h2>
+                        <span class="badge">Maestro</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Selecciona una tarea para ver entregas</label>
+                        <select id="gradeTaskSelect">
+                            <option value="">-- Seleccionar --</option>
+                        </select>
+                    </div>
+                    <div id="submissionsForGrading" class="submission-list">
+                        <div class="empty-state">Selecciona una tarea para ver las entregas.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Foro por clase -->
+        <div class="card" style="margin-top: 32px;" id="forumCard">
+            <div class="card-header">
+                <h2><i class="fas fa-comments"></i> Foro de la clase</h2>
+                <span class="badge" id="forumBadge">Colaboración</span>
+            </div>
+            <div class="form-group">
+                <label>Selecciona una clase para ver su foro</label>
+                <select id="forumClassSelect">
+                    <option value="Matemáticas">Matemáticas</option>
+                    <option value="Historia">Historia</option>
+                    <option value="Ciencias" selected>Ciencias</option>
+                    <option value="Lengua">Lengua</option>
+                </select>
+            </div>
+            <div id="commentListContainer" class="comment-list">
+                <div class="empty-state">No hay comentarios en esta clase. ¡Sé el primero!</div>
+            </div>
+            <form id="commentForm" style="margin-top: 16px;">
+                <div class="form-group">
+                    <label>Escribe un comentario (usa @ para mencionar)</label>
+                    <textarea id="commentText" placeholder="Ej: @Ana ¿Qué opinas sobre el tema de hoy?" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Publicar comentario</button>
+            </form>
+            <p style="font-size:13px; color:#64748b; margin-top:8px;">
+                <i class="fas fa-info-circle"></i> Todos los roles pueden comentar. Los administradores pueden eliminar comentarios.
+            </p>
+        </div>
+
+        <!-- Progreso y personalización del alumno -->
+        <div class="card" style="margin-top: 32px;" id="progressCard">
+            <div class="card-header">
+                <h2><i class="fas fa-chart-line"></i> Mi progreso y personalización</h2>
+                <span class="badge">Alumno</span>
+            </div>
+            <div class="progress-text">
+                <span>Progreso general</span>
+                <span id="progressPercentage">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+            </div>
+            <div id="classListContainer" class="class-list">
+                <div class="empty-state">Cargando clases...</div>
+            </div>
+            <div style="margin-top: 20px;">
+                <h3 style="font-size:16px; font-weight:600; margin-bottom:8px;"><i class="fas fa-lightbulb"></i> Recomendaciones</h3>
+                <div id="recommendationsContainer">
+                    <div class="empty-state">No hay recomendaciones por ahora.</div>
+                </div>
+            </div>
+            <p style="font-size:13px; color:#64748b; margin-top:8px;">
+                <i class="fas fa-save"></i> El progreso se guarda automáticamente.
+            </p>
+        </div>
+
+        <!-- Calendario y programación -->
+        <div class="card" style="margin-top: 32px;" id="calendarCard">
+            <div class="card-header">
+                <h2><i class="fas fa-calendar-alt"></i> Calendario y programación</h2>
+                <span class="badge" id="calendarBadge">Eventos</span>
+            </div>
+            <div id="createEventFormContainer" style="display: none;">
+                <form id="createEventForm" style="margin-bottom: 20px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Título del evento *</label>
+                            <input type="text" id="eventTitle" placeholder="Ej: Clase de álgebra" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Clase asociada</label>
+                            <select id="eventClass">
+                                <option value="Matemáticas">Matemáticas</option>
+                                <option value="Historia">Historia</option>
+                                <option value="Ciencias" selected>Ciencias</option>
+                                <option value="Lengua">Lengua</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha de inicio *</label>
+                            <input type="datetime-local" id="eventStart" required />
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de fin *</label>
+                            <input type="datetime-local" id="eventEnd" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Programar evento</button>
+                </form>
+            </div>
+            <div id="eventListContainer" class="event-list">
+                <div class="empty-state">No hay eventos programados.</div>
+            </div>
+            <p style="font-size:13px; color:#64748b; margin-top:8px;">
+                <i class="fas fa-bell"></i> Los recordatorios se muestran automáticamente para eventos próximos (menos de 24h).
+            </p>
+        </div>
+
+        <!-- Panel de Administración -->
+        <div id="adminPanelContainer" style="margin-top: 32px; display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-user-shield"></i> Panel de Administración</h2>
+                    <span class="badge">Admin</span>
+                </div>
+                <!-- Pestañas -->
+                <div class="admin-tabs">
+                    <button class="admin-tab active" data-tab="users"><i class="fas fa-users"></i> Usuarios</button>
+                    <button class="admin-tab" data-tab="limits"><i class="fas fa-sliders-h"></i> Límites</button>
+                    <button class="admin-tab" data-tab="assignments"><i class="fas fa-user-plus"></i> Asignaciones</button>
+                    <button class="admin-tab" data-tab="visibility"><i class="fas fa-eye"></i> Visibilidad</button>
+                    <button class="admin-tab" data-tab="announcements"><i class="fas fa-bullhorn"></i> Anuncios</button>
+                    <button class="admin-tab" data-tab="logs"><i class="fas fa-history"></i> Logs</button>
+                    <button class="admin-tab" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analíticas</button>
+                    <button class="admin-tab" data-tab="backup"><i class="fas fa-database"></i> Backup</button>
+                    <button class="admin-tab" data-tab="appearance"><i class="fas fa-palette"></i> Apariencia</button>
+                </div>
+
+                <!-- Contenido de cada pestaña -->
+                <div class="admin-panel active" id="panel-users">
+                    <h3 style="margin-bottom:12px;">Gestión de Usuarios</h3>
+                    <form id="addUserForm" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+                        <input type="text" id="newUserName" placeholder="Nombre" required style="flex:1; min-width:120px; padding:8px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                        <input type="email" id="newUserEmail" placeholder="Email" required style="flex:1; min-width:150px; padding:8px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                        <select id="newUserRole" style="padding:8px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                            <option value="student">Alumno</option>
+                            <option value="teacher">Maestro</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Agregar</button>
+                    </form>
+                    <div id="userListContainer" class="user-list">
+                        <div class="empty-state">No hay usuarios.</div>
+                    </div>
+                </div>
+
+                <div class="admin-panel" id="panel-limits">
+                    <h3 style="margin-bottom:12px;">Límites por Maestro</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Máximo de clases por maestro</label>
+                            <input type="number" id="maxClassesPerTeacher" min="1" value="10" />
+                        </div>
+                        <div class="form-group">
+                            <label>Máximo de alumnos por maestro</label>
+                            <input type="number" id="maxStudentsPerTeacher" min="1" value="30" />
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveLimits()"><i class="fas fa-save"></i> Guardar límites</button>
+                </div>
+
+                <div class="admin-panel" id="panel-assignments">
+                    <h3 style="margin-bottom:12px;">Asignar alumnos a maestros</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Seleccionar maestro</label>
+                            <select id="teacherSelectForAssignment"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Seleccionar alumno</label>
+                            <select id="studentSelectForAssignment"></select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="assignStudentToTeacher()"><i class="fas fa-user-plus"></i> Asignar</button>
+                    <div id="assignmentList" style="margin-top:16px;"></div>
+                </div>
+
+                <div class="admin-panel" id="panel-visibility">
+                    <h3 style="margin-bottom:12px;">Visibilidad de módulos</h3>
+                    <div id="visibilitySettings"></div>
+                    <button class="btn btn-primary" onclick="saveVisibility()"><i class="fas fa-save"></i> Guardar visibilidad</button>
+                </div>
+
+                <div class="admin-panel" id="panel-announcements">
+                    <h3 style="margin-bottom:12px;">Anuncio global</h3>
+                    <div class="form-group">
+                        <label>Mensaje (se muestra en la parte superior para todos)</label>
+                        <textarea id="announcementInput" rows="3" placeholder="Escribe un anuncio..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveAnnouncement()"><i class="fas fa-bullhorn"></i> Publicar anuncio</button>
+                </div>
+
+                <div class="admin-panel" id="panel-logs">
+                    <h3 style="margin-bottom:12px;">Logs de actividad</h3>
+                    <div id="logListContainer" class="log-list">
+                        <div class="empty-state">No hay logs.</div>
+                    </div>
+                </div>
+
+                <div class="admin-panel" id="panel-analytics">
+                    <h3 style="margin-bottom:12px;">Estadísticas generales</h3>
+                    <div class="analytics-grid" id="analyticsGrid"></div>
+                </div>
+
+                <div class="admin-panel" id="panel-backup">
+                    <h3 style="margin-bottom:12px;">Exportar / Importar datos</h3>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="exportData()"><i class="fas fa-download"></i> Exportar todo (JSON)</button>
+                        <button class="btn btn-outline" onclick="document.getElementById('importFileInput').click()"><i class="fas fa-upload"></i> Importar JSON</button>
+                        <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importData(event)" />
+                    </div>
+                    <p style="font-size:13px; color:#64748b; margin-top:8px;">Se exportarán usuarios, tareas, entregas, comentarios, eventos, progreso, logs y configuración.</p>
+                </div>
+
+                <div class="admin-panel" id="panel-appearance">
+                    <h3 style="margin-bottom:12px;">Personalización visual</h3>
+                    <div class="form-group">
+                        <label>Fuente (nombre de la familia)</label>
+                        <input type="text" id="fontFamilyInput" value="Inter" />
+                    </div>
+                    <div class="form-group">
+                        <label>Tamaño de fuente base (px)</label>
+                        <input type="number" id="fontSizeInput" value="16" min="12" max="24" />
+                    </div>
+                    <div class="form-group">
+                        <label>Color primario</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="primaryColorInput" value="#4f46e5" />
+                            <span id="primaryColorValue">#4f46e5</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveAppearance()"><i class="fas fa-save"></i> Guardar apariencia</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/forum.js"></script>
+    <script src="js/progress.js"></script>
+    <script src="js/calendar.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
