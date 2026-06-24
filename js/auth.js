@@ -1,14 +1,12 @@
 // ============================================================
-//  AUTENTICACIÓN
+//  AUTENTICACIÓN (versión corregida – carga segura del DOM)
 // ============================================================
 
-// Variables globales de sesión
 let currentUser = null;
 let currentUserData = null;
-let userRole = 'student'; // por defecto
-let currentRole = 'student'; // <-- AÑADIDO (paso 3)
+let userRole = 'student';
+let currentRole = 'student';
 
-// Funciones de UI para cambiar formularios
 function showLogin() {
     document.getElementById('loginForm').style.display = 'block';
     document.getElementById('registerForm').style.display = 'none';
@@ -47,7 +45,6 @@ function showAuthAlert(message, type = 'danger') {
     }
 }
 
-// Iniciar sesión
 async function login() {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -62,12 +59,10 @@ async function login() {
     }
 }
 
-// Registro (siempre como alumno)
 async function register() {
     const name = document.getElementById('regName').value.trim();
     const email = document.getElementById('regEmail').value.trim();
     const password = document.getElementById('regPassword').value;
-
     if (!name || !email || !password) {
         showAuthAlert('Completa los campos obligatorios.', 'danger');
         return;
@@ -76,7 +71,6 @@ async function register() {
         showAuthAlert('La contraseña debe tener al menos 6 caracteres.', 'danger');
         return;
     }
-
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         await db.collection('usuarios').doc(cred.user.uid).set({
@@ -92,7 +86,6 @@ async function register() {
     }
 }
 
-// Recuperar contraseña
 async function recoverPassword() {
     const email = document.getElementById('recoveryEmail').value.trim();
     if (!email) {
@@ -108,12 +101,19 @@ async function recoverPassword() {
     }
 }
 
-// Cerrar sesión
 function logout() {
     auth.signOut();
 }
 
-// Observador de autenticación
+// Función que espera a que el DOM esté completamente listo antes de renderizar
+function safeRenderAll() {
+    if (document.readyState === 'complete') {
+        renderAll();
+    } else {
+        window.addEventListener('load', renderAll);
+    }
+}
+
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
@@ -121,26 +121,25 @@ auth.onAuthStateChanged(async (user) => {
         if (doc.exists) {
             currentUserData = doc.data();
             userRole = currentUserData.role || 'student';
-            currentRole = userRole; // <-- AÑADIDO (paso 3)
+            currentRole = userRole;
         } else {
             currentUserData = { name: user.email, email: user.email, role: 'student' };
             userRole = 'student';
-            currentRole = 'student'; // <-- AÑADIDO (paso 3, también aquí por si acaso)
+            currentRole = 'student';
             await db.collection('usuarios').doc(user.uid).set(currentUserData);
         }
         document.getElementById('authContainer').style.display = 'none';
         document.getElementById('app').style.display = 'block';
         document.getElementById('userNameDisplay').textContent = currentUserData.name || user.email;
         document.getElementById('roleBadge').innerHTML = `<i class="fas fa-user-graduate"></i> ${userRole.toUpperCase()}`;
-        await loadAllDataFromFirestore();
-        // Pequeña pausa para asegurar que el DOM esté listo
-        setTimeout(function() {
-            renderAll();
-        }, 50);
+        // Cargar datos y renderizar solo cuando estén listos
+        loadAllDataFromFirestore().then(() => {
+            safeRenderAll();
+        });
     } else {
         currentUser = null;
         currentUserData = null;
-        currentRole = 'student'; // reiniciar
+        currentRole = 'student';
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('app').style.display = 'none';
         showLogin();
