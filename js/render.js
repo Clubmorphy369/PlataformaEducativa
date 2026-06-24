@@ -2,10 +2,13 @@
 //  RENDERIZADO PRINCIPAL
 // ============================================================
 
-let currentRole = 'student';
-
 function renderAll() {
     currentRole = userRole || 'student';
+
+    // Insertar selector de maestro para admin (definido en tasks_v2.js)
+    if (typeof insertTeacherSelector === 'function' && currentRole === 'admin') {
+        insertTeacherSelector();
+    }
 
     const visibility = config.visibility || {};
     const canSeeTasks = (visibility.tasks || ['student', 'teacher', 'admin']).includes(currentRole);
