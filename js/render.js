@@ -1,15 +1,8 @@
 // ============================================================
-//  RENDERIZADO PRINCIPAL
+//  RENDERIZADO PRINCIPAL (sin reasignar currentRole)
 // ============================================================
 
 function renderAll() {
-    currentRole = userRole || 'student';
-
-    // Insertar selector de maestro para admin (definido en tasks_v2.js)
-    if (typeof insertTeacherSelector === 'function' && currentRole === 'admin') {
-        insertTeacherSelector();
-    }
-
     const visibility = config.visibility || {};
     const canSeeTasks = (visibility.tasks || ['student', 'teacher', 'admin']).includes(currentRole);
     const canSeeForum = (visibility.forum || ['student', 'teacher', 'admin']).includes(currentRole);
@@ -27,12 +20,16 @@ function renderAll() {
 
     document.getElementById('createEventFormContainer').style.display = (currentRole === 'teacher' || currentRole === 'admin') && canSeeCalendar ? 'block' : 'none';
 
-    updateClassSelectors(); // Llenar los selectores de clase dinámicamente
+    updateClassSelectors();
+
+    if (typeof insertTeacherSelector === 'function') {
+        insertTeacherSelector();
+    }
 
     renderTaskList();
     renderTaskSelects();
     renderSubmissionsForGrading();
-    // renderComments();
+    renderComments();
     renderClassList();
     renderRecommendations();
     updateProgressBar();
@@ -46,7 +43,7 @@ function renderAll() {
     renderEventList();
     checkEventReminders();
 
-    if (canSeeAdmin) renderClassListAdmin(); // Para la pestaña de Materias
+    if (canSeeAdmin) renderClassListAdmin();
 }
 
 function updateBadge() {
