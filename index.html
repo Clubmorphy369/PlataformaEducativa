@@ -4,16 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Plataforma Educativa</title>
+    <!-- Fuente e iconos -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css" />
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
-    <!-- Contenedor de autenticación -->
+    <!-- Contenedor de autenticación (se muestra si no hay sesión) -->
     <div id="authContainer" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
         <div class="auth-container" style="max-width: 450px; width: 100%; background: var(--bg-card); padding: 2rem; border-radius: var(--radius); box-shadow: var(--shadow);">
             <h1>📚 Plataforma Educativa</h1>
@@ -69,7 +72,7 @@
         </div>
     </div>
 
-    <!-- Aplicación principal -->
+    <!-- Contenedor principal de la aplicación (oculto hasta iniciar sesión) -->
     <div id="app" class="app" style="display: none;">
         <!-- Cabecera -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
@@ -99,11 +102,12 @@
             <span id="notificationMessage">¡Notificación!</span>
         </div>
 
-        <!-- Grid principal -->
+        <!-- Grid principal: Tareas y entregas -->
         <div class="dashboard-grid">
-            <!-- Columna izquierda -->
+            <!-- Columna izquierda: Creación y lista de tareas -->
             <div>
-                <div class="card" id="createTaskCard">
+                <!-- OCULTO POR DEFECTO, SOLO SE MUESTRA PARA MAESTROS/ADMIN -->
+                <div class="card" id="createTaskCard" style="display: none;">
                     <div class="card-header">
                         <h2><i class="fas fa-plus-circle"></i> Nueva Tarea</h2>
                         <span class="badge">Maestro</span>
@@ -111,37 +115,40 @@
                     <form id="createTaskForm">
                         <div class="form-group">
                             <label>Título *</label>
-                            <input type="text" id="taskTitle" placeholder="Ej: Ensayo sobre la Revolución" required />
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha de entrega *</label>
-                            <input type="date" id="taskDue" required />
+                            <input type="text" id="taskTitle" placeholder="Ej: Apertura de Ajedrez: Apertura Italiana" required />
                         </div>
                         <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha de entrega *</label>
+                                <input type="date" id="taskDue" required />
+                            </div>
                             <div class="form-group">
                                 <label>Clase asociada</label>
                                 <select id="taskClass"></select>
                             </div>
+                        </div>
+                        <!-- Controles de visibilidad -->
+                        <div class="form-row">
                             <div class="form-group">
                                 <label>Estado</label>
                                 <select id="taskStatus">
-                                    <option value="borrador">Borrador</option>
-                                    <option value="publicado" selected>Publicado</option>
+                                    <option value="publicado">Publicado</option>
+                                    <option value="borrador">Borrador (solo maestros/admin)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Visibilidad</label>
+                                <select id="taskVisibility">
+                                    <option value="publico">Público (todos)</option>
+                                    <option value="restringido">Restringido (solo alumnos específicos)</option>
                                 </select>
                             </div>
                         </div>
+                        <!-- Contenedor de bloques -->
                         <div class="form-group">
-                            <label>Visibilidad</label>
-                            <select id="taskVisibility">
-                                <option value="publico">Público</option>
-                                <option value="restringido">Restringido (solo alumnos seleccionados)</option>
-                            </select>
-                        </div>
-                        <div id="studentSelectorContainer"></div>
-                        <div class="form-group">
-                            <label>Contenido de la tarea (bloques)</label>
-                            <div id="blocksContainer" style="margin-bottom: 8px;"></div>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label>Contenido de la clase (agrega y ordena bloques)</label>
+                            <div id="blocksContainer"></div>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
                                 <button type="button" class="btn btn-sm btn-outline" onclick="addBlock('text')"><i class="fas fa-font"></i> Texto</button>
                                 <button type="button" class="btn btn-sm btn-outline" onclick="addBlock('video')"><i class="fas fa-video"></i> Video</button>
                                 <button type="button" class="btn btn-sm btn-outline" onclick="addBlock('iframe')"><i class="fas fa-code"></i> Iframe</button>
@@ -149,7 +156,7 @@
                                 <button type="button" class="btn btn-sm btn-outline" onclick="addBlock('separator')"><i class="fas fa-heading"></i> Separador</button>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Crear/Actualizar Tarea</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Tarea</button>
                     </form>
                 </div>
 
@@ -164,7 +171,7 @@
                 </div>
             </div>
 
-            <!-- Columna derecha -->
+            <!-- Columna derecha: Entrega y Calificación -->
             <div>
                 <div class="card" id="submissionPanel">
                     <div class="card-header">
@@ -193,7 +200,8 @@
                     </form>
                 </div>
 
-                <div class="card" style="margin-top: 20px;" id="gradePanel">
+                <!-- OCULTO POR DEFECTO, SOLO SE MUESTRA PARA MAESTROS/ADMIN -->
+                <div class="card" style="margin-top: 20px; display: none;" id="gradePanel">
                     <div class="card-header">
                         <h2><i class="fas fa-star"></i> Calificar entregas</h2>
                         <span class="badge">Maestro</span>
@@ -211,7 +219,7 @@
             </div>
         </div>
 
-        <!-- Foro -->
+        <!-- Foro por clase -->
         <div class="card" style="margin-top: 32px;" id="forumCard">
             <div class="card-header">
                 <h2><i class="fas fa-comments"></i> Foro de la clase</h2>
@@ -236,7 +244,7 @@
             </p>
         </div>
 
-        <!-- Progreso -->
+        <!-- Progreso y personalización del alumno -->
         <div class="card" style="margin-top: 32px;" id="progressCard">
             <div class="card-header">
                 <h2><i class="fas fa-chart-line"></i> Mi progreso y personalización</h2>
@@ -263,7 +271,7 @@
             </p>
         </div>
 
-        <!-- Calendario -->
+        <!-- Calendario y programación -->
         <div class="card" style="margin-top: 32px;" id="calendarCard">
             <div class="card-header">
                 <h2><i class="fas fa-calendar-alt"></i> Calendario y programación</h2>
@@ -309,20 +317,21 @@
                     <h2><i class="fas fa-user-shield"></i> Panel de Administración</h2>
                     <span class="badge">Admin</span>
                 </div>
+                <!-- Pestañas -->
                 <div class="admin-tabs">
                     <button class="admin-tab active" data-tab="users"><i class="fas fa-users"></i> Usuarios</button>
                     <button class="admin-tab" data-tab="limits"><i class="fas fa-sliders-h"></i> Límites</button>
                     <button class="admin-tab" data-tab="assignments"><i class="fas fa-user-plus"></i> Asignaciones</button>
                     <button class="admin-tab" data-tab="visibility"><i class="fas fa-eye"></i> Visibilidad</button>
                     <button class="admin-tab" data-tab="announcements"><i class="fas fa-bullhorn"></i> Anuncios</button>
+                    <button class="admin-tab" data-tab="classes"><i class="fas fa-book"></i> Materias</button>
                     <button class="admin-tab" data-tab="logs"><i class="fas fa-history"></i> Logs</button>
                     <button class="admin-tab" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analíticas</button>
                     <button class="admin-tab" data-tab="backup"><i class="fas fa-database"></i> Backup</button>
                     <button class="admin-tab" data-tab="appearance"><i class="fas fa-palette"></i> Apariencia</button>
-                    <button class="admin-tab" data-tab="classes"><i class="fas fa-book"></i> Materias</button>
                 </div>
 
-                <!-- Paneles -->
+                <!-- Contenido de cada pestaña -->
                 <div class="admin-panel active" id="panel-users">
                     <h3 style="margin-bottom:12px;">Gestión de Usuarios</h3>
                     <form id="addUserForm" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
@@ -386,6 +395,18 @@
                     <button class="btn btn-primary" onclick="saveAnnouncement()"><i class="fas fa-bullhorn"></i> Publicar anuncio</button>
                 </div>
 
+                <!-- Panel de Materias -->
+                <div class="admin-panel" id="panel-classes">
+                    <h3 style="margin-bottom:12px;">Gestión de Materias</h3>
+                    <form id="addClassForm" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+                        <input type="text" id="newClassName" placeholder="Nombre de la materia" required style="flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--border-color); border-radius:8px;">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Agregar</button>
+                    </form>
+                    <div id="classListAdminContainer" class="user-list">
+                        <div class="empty-state">No hay materias creadas.</div>
+                    </div>
+                </div>
+
                 <div class="admin-panel" id="panel-logs">
                     <h3 style="margin-bottom:12px;">Logs de actividad</h3>
                     <div id="logListContainer" class="log-list">
@@ -427,31 +448,21 @@
                     </div>
                     <button class="btn btn-primary" onclick="saveAppearance()"><i class="fas fa-save"></i> Guardar apariencia</button>
                 </div>
-
-                <!-- Materias -->
-                <div class="admin-panel" id="panel-classes">
-                    <h3 style="margin-bottom:12px;">Gestión de Materias</h3>
-                    <form id="addClassForm" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
-                        <input type="text" id="newClassName" placeholder="Nueva materia" required style="flex:1; min-width:150px; padding:8px 12px; border:1px solid var(--border-color); border-radius:8px;">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Agregar</button>
-                    </form>
-                    <div id="classListAdminContainer" class="user-list"></div>
-                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modal para vista previa de tarea -->
-        <div id="taskModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-            <div id="taskModalContent" style="background: var(--bg-card); max-width: 800px; width: 90%; max-height: 90vh; border-radius: var(--radius); padding: 2rem; overflow-y: auto; box-shadow: var(--shadow);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2 id="taskModalTitle" style="margin: 0;">Título</h2>
-                    <div>
-                        <button class="btn btn-sm btn-outline" onclick="toggleFullscreenModal()"><i class="fas fa-expand"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
-                    </div>
+    <!-- Modal mejorado para ver tarea -->
+    <div id="taskModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+        <div id="taskModalContent" style="background:var(--bg-card); border-radius:12px; max-width:900px; width:95%; max-height:85vh; overflow-y:auto; padding:2rem; position:relative; box-shadow:0 20px 40px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 id="taskModalTitle" style="margin:0;"></h2>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="toggleFullscreenModal()" style="background:var(--primary-color); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;" title="Pantalla completa"><i class="fas fa-expand"></i></button>
+                    <button onclick="closeTaskModal()" style="background:transparent; border:none; font-size:1.8rem; cursor:pointer; line-height:1;">&times;</button>
                 </div>
-                <div id="taskModalBody" style="line-height: 1.6;"></div>
             </div>
+            <div id="taskModalBody" style="line-height:1.7;"></div>
         </div>
     </div>
 
@@ -460,6 +471,7 @@
     <script src="js/auth.js"></script>
     <script src="js/data.js"></script>
     <script src="js/render.js"></script>
+    <!-- Carga el nuevo archivo con todas las funciones -->
     <script src="js/tasks_v2.js?v=20260623"></script>
     <script src="js/forum.js"></script>
     <script src="js/progress.js"></script>
