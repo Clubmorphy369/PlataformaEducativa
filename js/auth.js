@@ -1,5 +1,5 @@
 // ============================================================
-//  AUTENTICACIÓN (versión corregida – carga segura del DOM)
+//  AUTENTICACIÓN (versión simplificada para mostrar tareas)
 // ============================================================
 
 let currentUser = null;
@@ -105,15 +105,6 @@ function logout() {
     auth.signOut();
 }
 
-// Función que espera a que el DOM esté completamente listo antes de renderizar
-function safeRenderAll() {
-    if (document.readyState === 'complete') {
-        renderAll();
-    } else {
-        window.addEventListener('load', renderAll);
-    }
-}
-
 auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
@@ -132,10 +123,24 @@ auth.onAuthStateChanged(async (user) => {
         document.getElementById('app').style.display = 'block';
         document.getElementById('userNameDisplay').textContent = currentUserData.name || user.email;
         document.getElementById('roleBadge').innerHTML = `<i class="fas fa-user-graduate"></i> ${userRole.toUpperCase()}`;
-        // Cargar datos y renderizar solo cuando estén listos
-        loadAllDataFromFirestore().then(() => {
-            safeRenderAll();
-        });
+        
+        // Cargar datos y luego mostrar tareas (sin depender de renderAll)
+        try {
+            await loadAllDataFromFirestore();
+            // Esperar un instante a que el DOM esté listo y luego renderizar solo lo esencial
+            setTimeout(() => {
+                if (typeof renderTaskList === 'function') {
+                    renderTaskList();
+                    renderTaskSelects();
+                }
+                // Opcional: si quieres que también se vea el progreso, calendario, etc.
+                if (typeof renderAll === 'function') {
+                    renderAll();
+                }
+            }, 200); // 200 ms de margen
+        } catch (e) {
+            console.error('Error al cargar datos:', e);
+        }
     } else {
         currentUser = null;
         currentUserData = null;
