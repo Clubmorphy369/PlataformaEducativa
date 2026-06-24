@@ -32,7 +32,7 @@ function renderAll() {
     renderTaskList();
     renderTaskSelects();
     renderSubmissionsForGrading();
-    renderComments();
+    // renderComments();
     renderClassList();
     renderRecommendations();
     updateProgressBar();
