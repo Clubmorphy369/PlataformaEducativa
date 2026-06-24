@@ -133,7 +133,10 @@ auth.onAuthStateChanged(async (user) => {
         document.getElementById('userNameDisplay').textContent = currentUserData.name || user.email;
         document.getElementById('roleBadge').innerHTML = `<i class="fas fa-user-graduate"></i> ${userRole.toUpperCase()}`;
         await loadAllDataFromFirestore();
-        renderAll();
+        // Pequeña pausa para asegurar que el DOM esté listo
+        setTimeout(function() {
+            renderAll();
+        }, 50);
     } else {
         currentUser = null;
         currentUserData = null;
