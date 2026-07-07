@@ -29,7 +29,6 @@ function renderAll() {
     renderTaskList();
     renderTaskSelects();
     renderSubmissionsForGrading();
-    renderComments();
     renderClassList();
     renderRecommendations();
     updateProgressBar();
