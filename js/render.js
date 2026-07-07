@@ -40,6 +40,7 @@ function renderAll() {
     renderAssignments();
     renderVisibilitySettings();
     renderGlobalAnnouncement();
+    renderForumComments();
     renderEventList();
     checkEventReminders();
 
