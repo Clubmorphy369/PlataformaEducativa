@@ -4,42 +4,6 @@
 
 let taskBlocks = [];
 
-// ----- Selector de alumnos para tareas restringidas -----
-function renderStudentCheckboxes(preselected = []) {
-    const container = document.getElementById('studentCheckboxList');
-    const students = users.filter(u => u.role === 'student');
-    if (students.length === 0) {
-        container.innerHTML = '<p class="text-muted">No hay alumnos registrados.</p>';
-        return;
-    }
-    let html = '';
-    students.forEach(s => {
-        const checked = preselected.includes(s.id) ? 'checked' : '';
-        html += `
-            <label style="display:block; margin-bottom:6px;">
-                <input type="checkbox" value="${s.id}" class="student-assign-checkbox" ${checked} />
-                ${s.name} (${s.email})
-            </label>
-        `;
-    });
-    container.innerHTML = html;
-}
-
-function getSelectedStudentIds() {
-    return Array.from(document.querySelectorAll('.student-assign-checkbox:checked')).map(cb => cb.value);
-}
-
-// Muestra/oculta el selector de alumnos según la visibilidad elegida
-document.getElementById('taskVisibility').addEventListener('change', function() {
-    const container = document.getElementById('studentAssignContainer');
-    if (this.value === 'restringido') {
-        container.style.display = 'block';
-        renderStudentCheckboxes();
-    } else {
-        container.style.display = 'none';
-    }
-});
-
 // ----- Ordenar tareas (mover arriba/abajo) -----
 function moveTaskUp(taskId) {
     const index = tasks.findIndex(t => t.id === taskId);
@@ -121,12 +85,6 @@ function editTask(taskId) {
     document.getElementById('taskClass').value = task.class;
     document.getElementById('taskStatus').value = task.status || 'publicado';
     document.getElementById('taskVisibility').value = task.visibility || 'publico';
-    if (task.visibility === 'restringido') {
-        document.getElementById('studentAssignContainer').style.display = 'block';
-        renderStudentCheckboxes(task.assignedStudents || []);
-    } else {
-        document.getElementById('studentAssignContainer').style.display = 'none';
-    }
     taskBlocks = JSON.parse(JSON.stringify(task.blocks || []));
     renderBlocks();
     tasks = tasks.filter(t => t.id !== taskId);
@@ -212,13 +170,6 @@ document.getElementById('createTaskForm').addEventListener('submit', function(e)
         return;
     }
 
-    const assignedStudents = visibility === 'restringido' ? getSelectedStudentIds() : [];
-
-    if (visibility === 'restringido' && assignedStudents.length === 0) {
-        alert('Selecciona al menos un alumno para una tarea restringida.');
-        return;
-    }
-
     const newTask = {
         id: Date.now().toString(),
         title,
@@ -226,7 +177,6 @@ document.getElementById('createTaskForm').addEventListener('submit', function(e)
         class: cls,
         status: status,
         visibility: visibility,
-        assignedStudents: assignedStudents,
         blocks: JSON.parse(JSON.stringify(taskBlocks)),
         createdAt: new Date().toISOString()
     };
@@ -236,7 +186,6 @@ document.getElementById('createTaskForm').addEventListener('submit', function(e)
     renderAll();
     document.getElementById('taskTitle').value = '';
     document.getElementById('taskDue').value = '';
-    document.getElementById('studentAssignContainer').style.display = 'none';
     taskBlocks = [];
     renderBlocks();
     addLog(currentRole, 'Creó tarea', `"${title}" (${cls})`);
@@ -251,13 +200,9 @@ function renderTaskList() {
     let filteredTasks = tasks.filter(task => {
         if (currentRole === 'admin' || currentRole === 'teacher') {
             return true;
+        } else {
+            return task.status === 'publicado' && task.visibility === 'publico';
         }
-        if (task.status !== 'publicado') return false;
-        if (task.visibility === 'publico') return true;
-        if (task.visibility === 'restringido') {
-            return (task.assignedStudents || []).includes(currentUser.uid);
-        }
-        return false;
     });
 
     if (filteredTasks.length === 0) {
