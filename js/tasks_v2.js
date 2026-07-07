@@ -437,4 +437,28 @@ document.getElementById('submitForm').addEventListener('submit', async function(
         addLog(currentRole, 'Entregó tarea', `Tarea ID ${taskId}`);
         showNotification('¡Tarea entregada correctamente!');
     } catch (error) {
-        alert('Error al entregar: ' + error.message
+        alert('Error al entregar: ' + error.message);
+    }
+});
+
+function gradeSubmission(subId) {
+    if (currentRole !== 'teacher' && currentRole !== 'admin') {
+        alert('Solo maestros o admin pueden calificar.');
+        return;
+    }
+    const sub = submissions.find(s => s.id === subId);
+    if (!sub) return;
+    const gradeInput = document.getElementById(`gradeInput_${subId}`);
+    const feedbackInput = document.getElementById(`feedbackInput_${subId}`);
+    const grade = parseFloat(gradeInput.value);
+    if (isNaN(grade) || grade < 0 || grade > 10) {
+        alert('Ingresa una calificación válida entre 0 y 10.');
+        return;
+    }
+    sub.grade = grade;
+    sub.feedback = feedbackInput.value.trim() || '';
+    saveAllData();
+    renderAll();
+    addLog(currentRole, 'Calificó entrega', `Tarea ID ${sub.taskId}, nota ${grade}`);
+    showNotification(`Tarea calificada con ${grade}/10.`);
+}
