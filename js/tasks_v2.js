@@ -1,8 +1,9 @@
 // ============================================================
-//  TAREAS Y ENTREGAS v2 (ordenar tareas, bloques, modal, etc.)
+//  TAREAS Y ENTREGAS v3 – Control de visibilidad por alumno
 // ============================================================
 
 let taskBlocks = [];
+let selectedStudents = []; // IDs de alumnos seleccionados para visibilidad restringida
 
 // ----- Ordenar tareas (mover arriba/abajo) -----
 function moveTaskUp(taskId) {
@@ -82,12 +83,13 @@ function editTask(taskId) {
     if (!task) return;
     document.getElementById('taskTitle').value = task.title;
     document.getElementById('taskDue').value = task.due;
-    document.getElementById('taskClass').value = task.class;
+    document.getElementById('taskClass').value = task.class || '';
     document.getElementById('taskStatus').value = task.status || 'publicado';
     document.getElementById('taskVisibility').value = task.visibility || 'publico';
     taskBlocks = JSON.parse(JSON.stringify(task.blocks || []));
+    selectedStudents = task.allowedStudents ? [...task.allowedStudents] : [];
     renderBlocks();
-    tasks = tasks.filter(t => t.id !== taskId);
+    renderStudentSelector(task.visibility); // actualiza selector
     document.getElementById('createTaskCard').scrollIntoView({ behavior: 'smooth' });
     showNotification('Editando tarea. No olvides guardar los cambios.');
 }
@@ -156,6 +158,87 @@ function renderBlocks() {
     container.innerHTML = html;
 }
 
+// ===== Selector de alumnos (visibilidad restringida) =====
+function getAvailableStudents() {
+    if (currentRole === 'admin') {
+        return users.filter(u => u.role === 'student');
+    } else if (currentRole === 'teacher') {
+        const myStudents = teacherAssignments[currentUser.uid] || [];
+        return users.filter(u => u.role === 'student' && myStudents.includes(u.id));
+    }
+    return [];
+}
+
+function renderStudentSelector(visibility) {
+    let container = document.getElementById('studentSelectorContainer');
+    if (!container) {
+        const visGroup = document.getElementById('taskVisibility').parentNode;
+        container = document.createElement('div');
+        container.id = 'studentSelectorContainer';
+        container.style.marginTop = '12px';
+        visGroup.parentNode.insertBefore(container, visGroup.nextSibling);
+    }
+    if (visibility !== 'restringido') {
+        container.innerHTML = '';
+        return;
+    }
+    const students = getAvailableStudents();
+    if (students.length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay alumnos disponibles para asignar.</p>';
+        return;
+    }
+    let html = '<label>Alumnos que pueden ver esta tarea:</label><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">';
+    students.forEach(s => {
+        const checked = selectedStudents.includes(s.id) ? 'checked' : '';
+        html += `
+            <label style="display:flex; align-items:center; gap:4px; background:var(--bg-body); padding:4px 8px; border-radius:6px;">
+                <input type="checkbox" value="${s.id}" ${checked} onchange="toggleStudentSelection('${s.id}', this.checked)" />
+                ${s.name}
+            </label>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function toggleStudentSelection(studentId, isChecked) {
+    if (isChecked) {
+        if (!selectedStudents.includes(studentId)) selectedStudents.push(studentId);
+    } else {
+        selectedStudents = selectedStudents.filter(id => id !== studentId);
+    }
+}
+
+document.getElementById('taskVisibility').addEventListener('change', function(e) {
+    renderStudentSelector(e.target.value);
+});
+
+// ===== Insertar selector de maestro (solo admin) =====
+function insertTeacherSelector() {
+    if (currentRole !== 'admin') return;
+    let container = document.getElementById('teacherSelectorContainer');
+    if (container) return;
+    const classGroup = document.getElementById('taskClass').parentNode.parentNode; // form-row
+    const newRow = document.createElement('div');
+    newRow.className = 'form-group';
+    newRow.id = 'teacherSelectorContainer';
+    newRow.innerHTML = `
+        <label>Maestro responsable (opcional)</label>
+        <select id="taskTeacher">
+            <option value="">-- Sin maestro (admin) --</option>
+        </select>
+    `;
+    classGroup.after(newRow);
+    const select = document.getElementById('taskTeacher');
+    const teachers = users.filter(u => u.role === 'teacher');
+    teachers.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name;
+        select.appendChild(opt);
+    });
+}
+
 // ===== Guardar tarea =====
 document.getElementById('createTaskForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -178,7 +261,9 @@ document.getElementById('createTaskForm').addEventListener('submit', function(e)
         status: status,
         visibility: visibility,
         blocks: JSON.parse(JSON.stringify(taskBlocks)),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        teacherId: currentRole === 'teacher' ? currentUser.uid : (currentRole === 'admin' ? (document.getElementById('taskTeacher')?.value || 'admin') : ''),
+        allowedStudents: visibility === 'restringido' ? [...selectedStudents] : []
     };
 
     tasks.push(newTask);
@@ -187,21 +272,28 @@ document.getElementById('createTaskForm').addEventListener('submit', function(e)
     document.getElementById('taskTitle').value = '';
     document.getElementById('taskDue').value = '';
     taskBlocks = [];
+    selectedStudents = [];
     renderBlocks();
+    renderStudentSelector('publico');
     addLog(currentRole, 'Creó tarea', `"${title}" (${cls})`);
     showNotification('Tarea creada exitosamente.');
 });
 
-// ===== Renderizar lista de tareas (con botones de ordenar para admin/maestro) =====
+// ===== Renderizar lista de tareas =====
 function renderTaskList() {
     const container = document.getElementById('taskListContainer');
     const count = document.getElementById('taskCount');
 
     let filteredTasks = tasks.filter(task => {
-        if (currentRole === 'admin' || currentRole === 'teacher') {
+        if (currentRole === 'admin') {
             return true;
-        } else {
-            return task.status === 'publicado' && task.visibility === 'publico';
+        } else if (currentRole === 'teacher') {
+            return task.teacherId === currentUser.uid;
+        } else { // alumno
+            if (task.status !== 'publicado') return false;
+            if (task.visibility === 'publico') return true;
+            if (task.visibility === 'restringido' && task.allowedStudents && task.allowedStudents.includes(currentUser.uid)) return true;
+            return false;
         }
     });
 
@@ -216,17 +308,18 @@ function renderTaskList() {
         const dueDate = new Date(task.due).toLocaleDateString('es-ES');
         const statusBadge = task.status === 'publicado' ? '✅' : '📝';
         const visibilityBadge = task.visibility === 'publico' ? '🌐' : '🔒';
+        const teacherName = users.find(u => u.id === task.teacherId)?.name || 'Admin';
 
         html += `
             <div class="task-item">
-                <div class="title">${statusBadge} ${visibilityBadge} ${task.title}</div>
+                <div class="title">${statusBadge} ${visibilityBadge} ${task.title} <span style="font-size:12px; color:#64748b;">(${teacherName})</span></div>
                 <div class="meta">
                     <span><i class="far fa-calendar-alt"></i> ${dueDate}</span>
                     <span><i class="fas fa-users"></i> ${task.class}</span>
                     <span><i class="fas fa-cubes"></i> ${task.blocks?.length || 0} bloques</span>
                 </div>
                 <div class="actions">
-                    ${(currentRole === 'teacher' || currentRole === 'admin') ? `
+                    ${(currentRole === 'admin' || (currentRole === 'teacher' && task.teacherId === currentUser.uid)) ? `
                         <button class="btn btn-sm btn-outline" onclick="moveTaskUp('${task.id}')" ${index === 0 ? 'disabled' : ''}><i class="fas fa-arrow-up"></i></button>
                         <button class="btn btn-sm btn-outline" onclick="moveTaskDown('${task.id}')" ${index === filteredTasks.length - 1 ? 'disabled' : ''}><i class="fas fa-arrow-down"></i></button>
                         <button class="btn btn-sm btn-outline" onclick="editTask('${task.id}')"><i class="fas fa-edit"></i></button>
@@ -244,32 +337,42 @@ function renderTaskList() {
     count.textContent = filteredTasks.length;
 }
 
-// ===== Funciones existentes (sin cambios) =====
+// ===== Funciones auxiliares =====
 function renderTaskSelects() {
     const submitSelect = document.getElementById('submitTaskSelect');
     const gradeSelect = document.getElementById('gradeTaskSelect');
 
+    let visibleTasks = tasks.filter(task => {
+        if (currentRole === 'admin') return true;
+        if (currentRole === 'teacher') return task.teacherId === currentUser.uid;
+        if (task.status !== 'publicado') return false;
+        if (task.visibility === 'publico') return true;
+        if (task.visibility === 'restringido' && task.allowedStudents && task.allowedStudents.includes(currentUser.uid)) return true;
+        return false;
+    });
+
     const currentSubmitVal = submitSelect.value;
     submitSelect.innerHTML = `<option value="">-- Elige una tarea --</option>`;
-    tasks.forEach(task => {
+    visibleTasks.forEach(task => {
         const opt = document.createElement('option');
         opt.value = task.id;
         opt.textContent = `${task.title} (${task.class})`;
         submitSelect.appendChild(opt);
     });
-    if (currentSubmitVal && tasks.some(t => t.id == currentSubmitVal)) {
+    if (currentSubmitVal && visibleTasks.some(t => t.id == currentSubmitVal)) {
         submitSelect.value = currentSubmitVal;
     }
 
     const currentGradeVal = gradeSelect.value;
     gradeSelect.innerHTML = `<option value="">-- Seleccionar --</option>`;
-    tasks.forEach(task => {
+    let gradableTasks = currentRole === 'admin' ? tasks : tasks.filter(t => t.teacherId === currentUser.uid);
+    gradableTasks.forEach(task => {
         const opt = document.createElement('option');
         opt.value = task.id;
         opt.textContent = `${task.title} (${task.class})`;
         gradeSelect.appendChild(opt);
     });
-    if (currentGradeVal && tasks.some(t => t.id == currentGradeVal)) {
+    if (currentGradeVal && gradableTasks.some(t => t.id == currentGradeVal)) {
         gradeSelect.value = currentGradeVal;
     }
 }
@@ -335,7 +438,7 @@ function selectTaskForSubmit(taskId) {
     document.getElementById('submitText').focus();
 }
 
-document.getElementById('submitForm').addEventListener('submit', async function(e) {
+document.getElementById('submitForm').addEventListener('submit', function(e) {
     e.preventDefault();
     if (currentRole !== 'student') {
         alert('Solo los alumnos pueden entregar tareas.');
@@ -364,7 +467,6 @@ document.getElementById('submitForm').addEventListener('submit', async function(
     const newSub = {
         id: Date.now().toString(),
         taskId: taskId,
-        studentId: currentUser.uid,
         studentName: currentUserData?.name || 'Alumno',
         text: text,
         fileName: fileName,
@@ -373,17 +475,13 @@ document.getElementById('submitForm').addEventListener('submit', async function(
         feedback: '',
         submittedAt: new Date().toISOString()
     };
-    try {
-        submissions.push(newSub);
-        await db.collection('submissions').doc(newSub.id).set(newSub);
-        renderAll();
-        document.getElementById('submitText').value = '';
-        document.getElementById('submitFile').value = '';
-        addLog(currentRole, 'Entregó tarea', `Tarea ID ${taskId}`);
-        showNotification('¡Tarea entregada correctamente!');
-    } catch (error) {
-        alert('Error al entregar: ' + error.message);
-    }
+    submissions.push(newSub);
+    saveAllData();
+    renderAll();
+    document.getElementById('submitText').value = '';
+    document.getElementById('submitFile').value = '';
+    addLog(currentRole, 'Entregó tarea', `Tarea ID ${taskId}`);
+    showNotification('¡Tarea entregada correctamente!');
 });
 
 function gradeSubmission(subId) {
@@ -407,3 +505,17 @@ function gradeSubmission(subId) {
     addLog(currentRole, 'Calificó entrega', `Tarea ID ${sub.taskId}, nota ${grade}`);
     showNotification(`Tarea calificada con ${grade}/10.`);
 }
+
+// ===== Inicialización extra =====
+// Intentamos insertar el selector de maestro cuando se carguen los datos
+// (se llamará desde renderAll, pero por si acaso lo dejamos listo al cargar la página)
+document.addEventListener('DOMContentLoaded', function() {
+    // Si el usuario ya está autenticado, se ejecutará renderAll y allí se llamará insertTeacherSelector
+    // Pero podemos asegurarnos de que el listener de visibility esté activo
+    const visSelect = document.getElementById('taskVisibility');
+    if (visSelect) {
+        visSelect.addEventListener('change', function(e) {
+            renderStudentSelector(e.target.value);
+        });
+    }
+});
